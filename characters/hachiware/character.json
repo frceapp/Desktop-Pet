@@ -1,0 +1,51 @@
+{
+  "name": "Hachiware",
+  "size": 93,
+  "speed": 60,
+  "annoyAfterClicks": 5,
+  "clickWindowMs": 4000,
+  "cryMs": 6000,
+  "model": {
+    "file": "../../chiikawa_and_friends/scene.gltf",
+    "node": "Hachiware",
+    "tears": {"x": 0.2, "y": 0.56},
+    "expressions": {
+      "shutEyes": [
+        {"clear": [1116, 1340, 175, 170]},
+        {"clear": [1432, 1340, 175, 170]}
+      ],
+      "bigMouth": [
+        {"clear": [1210, 1640, 285, 195]},
+        {"copy": [1750, 1624, 184, 208, 1278, 1640, 184, 193]}
+      ],
+      "talk": [
+        "bigMouth"
+      ],
+      "blink": [
+        "shutEyes",
+        {"stroke": [30, [1148, 1420], [1176, 1440], [1202, 1446], [1228, 1440], [1256, 1420]]},
+        {"stroke": [30, [1464, 1420], [1492, 1440], [1518, 1446], [1544, 1440], [1572, 1420]]}
+      ],
+      "annoyed": [
+        "shutEyes",
+        {"stroke": [30, [1154, 1376], [1250, 1424], [1154, 1472]]},
+        {"stroke": [30, [1566, 1376], [1470, 1424], [1566, 1472]]},
+        "bigMouth"
+      ],
+      "cry": [
+        "bigMouth"
+      ],
+      "sleep": [
+        "blink",
+        {"clear": [1210, 1640, 285, 195]},
+        {"copy": [440, 1690, 190, 150, 1278, 1690]}
+      ]
+    }
+  },
+  "lines": {
+    "idle": ["nantoka nareee!", "…tte koto!?"],
+    "click": ["…tte koto!?"],
+    "annoyed": ["nantoka nareee!"],
+    "cry": ["waa… naichatta", "naichatta!"]
+  }
+}

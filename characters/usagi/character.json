@@ -1,0 +1,37 @@
+{
+  "name": "Usagi",
+  "size": 118,
+  "speed": 80,
+  "annoyAfterClicks": 5,
+  "clickWindowMs": 4000,
+  "blackHole": {"afterTantrums": 3, "size": 260, "seconds": 6},
+  "crack": {"fromHeight": 200, "width": 420, "height": 260, "seconds": 5},
+  "model": {
+    "file": "../../chiikawa_and_friends/scene.gltf",
+    "node": "Usagi",
+    "expressions": {
+      "talk": [
+        {"clear": [1440, 600, 270, 200]},
+        {"copy": [1160, 606, 150, 190, 1504, 606]}
+      ],
+      "blink": [
+        {"clear": [1360, 190, 145, 125]},
+        {"clear": [1632, 190, 145, 125]},
+        {"stroke": [28, [1385, 246], [1408, 262], [1430, 268], [1452, 262], [1475, 246]]},
+        {"stroke": [28, [1657, 246], [1680, 262], [1702, 268], [1724, 262], [1747, 246]]}
+      ],
+      "annoyed": [
+        {"clear": [1440, 500, 270, 330]},
+        {"copy": [125, 520, 160, 285, 1501, 520]}
+      ]
+    }
+  },
+  "lines": {
+    "idle": ["ura", "yaha", "fuun", "purya", "purururururu"],
+    "click": ["ura!", "yaha!", "purya"],
+    "warn": ["haa?"],
+    "annoyed": ["haa?", "ura!!"],
+    "special": ["yaha!!", "purururururu!!"],
+    "land": ["yaha!!", "ura!!"]
+  }
+}

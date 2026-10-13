@@ -1,0 +1,139 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+}
+
+body {
+  --size: 150px;
+  --ink: #4a3b35;
+  position: relative;
+  font-family: "Segoe UI", sans-serif;
+}
+
+#pet {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: var(--size);
+  height: var(--size);
+  transform: translateX(-50%);
+  cursor: grab;
+}
+
+#pet img,
+#pet canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  -webkit-user-drag: none;
+}
+
+#pet img {
+  object-fit: contain;
+  object-position: bottom;
+  transform: scaleX(var(--facing, 1));
+}
+
+#pet.dragging {
+  cursor: grabbing;
+}
+
+#bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--size) + 10px);
+  transform: translateX(-50%);
+  padding: 4px 10px 5px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+#bubble[hidden] {
+  display: none;
+}
+
+#bubble.pop {
+  animation: pop 0.22s cubic-bezier(0.3, 1.6, 0.6, 1);
+}
+
+/* little tail pointing down at the pet */
+#bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 12px;
+  height: 12px;
+  margin-left: -8px;
+  border-right: 3px solid var(--ink);
+  border-bottom: 3px solid var(--ink);
+  background: #fff;
+  transform: rotate(45deg);
+}
+
+#zzz {
+  position: absolute;
+  left: calc(50% + var(--size) * 0.22);
+  bottom: calc(var(--size) * 0.72);
+  display: none;
+  color: var(--ink);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.sleeping #zzz {
+  display: block;
+}
+
+#zzz span {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  font-size: calc(var(--size) * 0.14 + 4px);
+  opacity: 0;
+  animation: doze 3s linear infinite;
+}
+
+#zzz span:nth-child(2) {
+  animation-delay: 1s;
+}
+
+#zzz span:nth-child(3) {
+  animation-delay: 2s;
+}
+
+/* each z drifts up and away, growing as it goes */
+@keyframes doze {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(var(--size) * 0.22), calc(var(--size) * -0.4)) scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes pop {
+  from {
+    transform: translateX(-50%) scale(0.4);
+    opacity: 0;
+  }
+}
