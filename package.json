@@ -1,7 +1,7 @@
 {
   "name": "desktop-pet",
   "productName": "Desktop Pet",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Chiikawa, Hachiware and Usagi walking around on top of your windows",
   "author": "Lim",
   "repository": "github:frceapp/Desktop-Pet",
@@ -29,10 +29,6 @@
     },
     "nsis": {
       "artifactName": "Desktop-Pet-Setup-${version}.${ext}"
-    },
-    "publish": {
-      "provider": "github",
-      "releaseType": "release"
     }
   },
   "devDependencies": {

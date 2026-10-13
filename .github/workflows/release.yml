@@ -19,6 +19,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx electron-builder --win --publish always
+      - run: npx electron-builder --win --publish never
+      # One release per tag, holding just the installer. (Letting electron-builder publish
+      # uploads its files in parallel, which made two releases for the same tag.)
+      - name: Publish the installer as a release
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" dist/Desktop-Pet-Setup-*.exe --title "Desktop Pet ${GITHUB_REF_NAME#v}" --generate-notes
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
