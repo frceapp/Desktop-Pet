@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <!-- The sha256 below is the hash of the import map further down; update it if you edit the map. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: blob: data:; connect-src file:; script-src 'self' 'sha256-QHspYcLLOKSarKa9WCONpLgp80qJjPebMyusqjGSeoo='; style-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: blob: data:; connect-src file:; script-src 'self' 'sha256-gh7NRJ7MEWdYUGMcXx0SUMJY93gUi2UqlztG1amlvwA='; style-src 'self'">
   <title>Desktop Pet</title>
   <link rel="stylesheet" href="pet.css">
-  <script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body>
   <div id="bubble" hidden></div>

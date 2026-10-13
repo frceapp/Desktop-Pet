@@ -1,0 +1,24 @@
+# Builds the Windows installer and attaches it to a GitHub Release whenever a version tag
+# (v1.0.0, v1.1.0, ...) is pushed. The tag must match "version" in package.json.
+name: Release installer
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

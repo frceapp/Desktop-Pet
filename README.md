@@ -25,7 +25,17 @@ animations; every movement and expression you see is produced by this app at run
 Chiikawa and its characters are created by Nagano. This project is not affiliated with or endorsed by
 the author or the rights holders.
 
-## Run it
+## Install
+
+Download `Desktop-Pet-Setup-x.y.z.exe` from the
+[latest release](https://github.com/frceapp/Desktop-Pet/releases/latest) and run it. It installs for
+your user only (no administrator rights needed), adds a Start menu and desktop shortcut, and starts
+the pets. Uninstall it from Windows Settings like any other app.
+
+The installer is not code-signed, so Windows SmartScreen may say "Windows protected your PC" the
+first time. Choose **More info**, then **Run anyway**.
+
+## Run from source
 
 You need [Node.js](https://nodejs.org/) 22.12 or newer.
 
@@ -36,6 +46,28 @@ npm start
 
 The first start downloads Electron, so it takes a little longer. If Electron says it failed to
 install, run `npx install-electron` once and start again.
+
+### Build the installer
+
+```bash
+npm run dist
+```
+
+This writes `dist/Desktop-Pet-Setup-<version>.exe`.
+
+To publish a new version on GitHub, raise `"version"` in `package.json`, commit, then push a tag
+with the same number:
+
+```bash
+git tag v1.0.1
+git push origin main v1.0.1
+```
+
+GitHub then builds the installer and attaches it to a new release (see
+`.github/workflows/release.yml`).
+
+three.js is copied into `renderer/vendor/three` so the installed app needs no `node_modules`; run
+`npm run vendor` after updating it.
 
 ## What they do
 
