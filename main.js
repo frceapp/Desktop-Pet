@@ -8,6 +8,8 @@ const WIN_W = 260;
 const WIN_H = 300;
 
 const pets = new Map(); // characters now on screen: id -> window
+const moods = new Map(); // what each is doing, as it last reported: id -> state
+const meetAgain = new Map(); // when a pair may next stop to meet: "a|b" -> time
 let tray;
 const effects = new Map(); // screen effects now showing: kind -> window
 // `characters` are the ids chosen to be on screen; `pets` holds each one's own
@@ -169,7 +171,7 @@ function createPet(id) {
     },
   });
   pets.set(id, win);
-  win.on('closed', () => pets.get(id) === win && pets.delete(id));
+  win.on('closed', () => pets.get(id) === win && pets.delete(id) && moods.delete(id));
   // Only the pet itself catches the mouse; the renderer toggles this on hover.
   win.setIgnoreMouseEvents(true, { forward: true });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
@@ -255,6 +257,11 @@ function registerIpc() {
   });
 
   ipcMain.on('pet:effect', (event, request) => openEffect(request, petOf(event)[1]));
+
+  ipcMain.on('pet:state', (event, state) => {
+    const [id] = petOf(event);
+    if (id) moods.set(id, state);
+  });
 }
 
 // A picture of what is on screen inside `bounds`, as a data URL. It never leaves this app:
@@ -319,6 +326,57 @@ async function openEffect({ kind, x, y, width, height, seconds }, pet) {
   setTimeout(() => !effect.isDestroyed() && effect.close(), seconds * 1000 + 200);
 }
 
+// With more than one pet out, each is kept told where the others are and what they are
+// doing, and two that wander close together are told to stop and meet. Deciding that here
+// means both hear it at the same moment and agree on what they are doing.
+const MEETINGS = { greet: 3.2, chat: 4.6, dance: 4.2 }; // kind -> seconds
+
+function keepCompany() {
+  setInterval(() => {
+    const all = [...pets]
+      .filter(([, win]) => !win.isDestroyed())
+      .map(([id, win]) => {
+        const [x, y] = win.getPosition();
+        return { id, x: x + WIN_W / 2, y, state: moods.get(id) ?? 'idle' };
+      });
+    // a pet on its own is told so too, or it would go on believing in the ones that left
+    for (const pet of all) {
+      pets.get(pet.id).webContents.send('pet:others', all.filter((other) => other !== pet));
+    }
+
+    const free = (pet) => pet.state === 'idle' || pet.state === 'walk';
+    const now = Date.now();
+    for (const a of all) {
+      for (const b of all) {
+        const pair = `${a.id}|${b.id}`;
+        if (a.id >= b.id || !free(a) || !free(b) || now < (meetAgain.get(pair) ?? 0)) continue;
+        if (Math.abs(a.x - b.x) > 150 || Math.abs(a.y - b.y) > 30) continue;
+        const kinds = Object.keys(MEETINGS);
+        const kind = kinds[Math.floor(Math.random() * kinds.length)];
+        const meeting = { kind, seconds: MEETINGS[kind] };
+        pets.get(a.id).webContents.send('pet:meet', { ...meeting, with: b.id, lead: true });
+        pets.get(b.id).webContents.send('pet:meet', { ...meeting, with: a.id, lead: false });
+        a.state = b.state = 'meet'; // spoken for, should a third be standing right there
+        moods.set(a.id, 'meet');
+        moods.set(b.id, 'meet');
+        meetAgain.set(pair, now + 20000 + Math.random() * 20000);
+      }
+    }
+  }, 200);
+}
+
+// Pets chase the mouse, so tell them whenever it moves.
+function watchCursor() {
+  let last = '';
+  setInterval(() => {
+    const point = screen.getCursorScreenPoint();
+    const now = `${point.x},${point.y}`;
+    if (now === last) return;
+    last = now;
+    for (const win of pets.values()) win.webContents.send('pet:cursor', point);
+  }, 60);
+}
+
 function sendAreas() {
   for (const win of pets.values()) win.webContents.send('pet:area', workAreaOf(win));
 }
@@ -330,6 +388,8 @@ if (!app.requestSingleInstanceLock()) {
     loadSettings();
     registerIpc();
     syncPets();
+    watchCursor();
+    keepCompany();
     screen.on('display-metrics-changed', sendAreas);
     screen.on('display-removed', sendAreas);
   });

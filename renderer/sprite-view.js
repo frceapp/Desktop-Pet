@@ -13,7 +13,8 @@ export async function createView(host, character, cfg) {
     const file =
       (sitting && state === 'idle' ? s.sit : null) ??
       s[state] ??
-      (state === 'drag' || state === 'fall' ? s.talk : null) ??
+      (['drag', 'fall', 'reach', 'greet', 'chat', 'dance'].includes(state) ? s.talk : null) ??
+      (state === 'chase' ? s.walk : null) ??
       (state === 'special' ? s.annoyed : null) ??
       (state === 'sleep' ? s.sit : null) ??
       s.idle;

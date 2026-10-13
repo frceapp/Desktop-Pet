@@ -4,6 +4,10 @@ const bubble = document.getElementById('bubble');
 
 const GRAVITY = 2600; // px/s², for falling after being dropped
 const DRAG_THRESHOLD = 6; // px the mouse must travel before a press counts as a drag
+const NOTICE = 170; // px beyond its own body at which it notices the mouse pointer
+const BORED_AFTER = 4; // seconds the pointer may sit still before it loses interest
+const TIRED_AFTER = 7; // seconds it grabs at the pointer before giving up for a while
+const REST = 5; // seconds it then ignores the pointer
 
 let character; // { id, base, config }
 let cfg;
@@ -26,6 +30,13 @@ let tantrums = 0; // times it has snapped since its last black hole
 let press = null; // in-progress mouse press on the pet
 let hover = false;
 let bubbleTimer;
+let cursor = null; // the mouse pointer on screen: { x, y, movedAt }
+let ignorePointerUntil = 0;
+let noticedAt = -Infinity;
+let others = []; // the other pets on screen: [{ id, x, y, state }], x at their middle
+let meeting = null; // { with, kind, lead, time, spoken } while stopped to meet another pet
+let comforting = null; // { with, said } while going to a pet that is crying
+let comfortAgainAt = 0;
 
 const rand = (min, max) => min + Math.random() * (max - min);
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
@@ -47,9 +58,16 @@ function setState(next, seconds) {
   }
   state = next;
   stateTime = seconds;
-  view?.setState(next);
+  view?.setState(next === 'meet' ? meeting.kind : next);
   document.body.classList.toggle('sleeping', next === 'sleep');
+  api.state(next); // the other pets are told what this one is up to
 }
+
+const middle = () => pos.x + win.w / 2;
+// Another pet standing on the same level as this one.
+const beside = (other) => Math.abs(other.y - pos.y) < 40;
+// How far apart two pets like to stand.
+const elbowRoom = () => cfg.size * 0.55 + 32;
 
 function say(kind, seconds = 1.6) {
   const line = pick(cfg.lines?.[kind] ?? []);
@@ -65,6 +83,12 @@ function say(kind, seconds = 1.6) {
 
 function startWalk() {
   targetX = rand(minX(), maxX());
+  // now and then it wanders over to one of the others instead
+  const friend = pick(others.filter((other) => beside(other) && other.state !== 'sleep'));
+  if (friend && Math.random() < 0.4) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    targetX = clamp(friend.x - win.w / 2 + side * elbowRoom() * 1.3, minX(), maxX());
+  }
   if (Math.abs(targetX - pos.x) < 40) return setState('idle', rand(1, 3));
   facing = targetX > pos.x ? 1 : -1;
   view?.setFacing(facing);
@@ -144,13 +168,106 @@ async function drop() {
   else startFall();
 }
 
+// Where the pointer is from the pet's middle, if it is within `range` and worth chasing:
+// still being moved about, and the pet not worn out from the last chase.
+function pointerNearby(range) {
+  const now = performance.now();
+  if (!cursor || now < ignorePointerUntil || now - cursor.movedAt > BORED_AFTER * 1000) return null;
+  const dx = cursor.x - (pos.x + win.w / 2);
+  const dy = cursor.y - (pos.y + win.h - cfg.size / 2);
+  return Math.hypot(dx, dy) < range ? { dx, dy } : null;
+}
+
 let last = performance.now();
 function tick(now) {
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
   stateTime -= dt;
 
+  const range = NOTICE + cfg.size / 2;
+  const arm = cfg.size * 0.3; // close enough sideways to grab at it
+  if ((state === 'idle' || state === 'walk') && pointerNearby(range)) {
+    // spotted the pointer: after it! (told to stay, it can only reach from where it sits)
+    setState(settings.stay ? 'reach' : 'chase', TIRED_AFTER);
+    if (now - noticedAt > 6000) {
+      noticedAt = now;
+      say('click', 1.2);
+    }
+  }
+
+  // someone is crying: go and keep them company (told to stay, only if they are right there)
+  if ((state === 'idle' || state === 'walk') && now > comfortAgainAt) {
+    const reach = settings.stay ? 170 : 700;
+    const sad = others.find((other) => other.state === 'cry' && beside(other) && Math.abs(other.x - middle()) < reach);
+    if (sad) {
+      comforting = { with: sad.id, said: false };
+      setState('comfort', 9);
+    }
+  }
+
   switch (state) {
+    case 'chase':
+    case 'reach': {
+      const pointer = pointerNearby(range * 1.3);
+      if (!pointer || stateTime <= 0) {
+        if (stateTime <= 0) ignorePointerUntil = now + REST * 1000;
+        setState('idle', rand(1, 2.5));
+        break;
+      }
+      facing = pointer.dx >= 0 ? 1 : -1;
+      view?.setFacing(facing);
+      if (state === 'reach') {
+        // it got away sideways: run after it again
+        if (!settings.stay && Math.abs(pointer.dx) > arm * 1.8) setState('chase', stateTime);
+      } else if (Math.abs(pointer.dx) <= arm) {
+        setState('reach', stateTime);
+      } else {
+        pos.x = clamp(pos.x + facing * cfg.speed * 1.2 * dt, minX(), maxX());
+      }
+      break;
+    }
+    case 'meet': {
+      const partner = others.find((other) => other.id === meeting.with);
+      meeting.time += dt;
+      // over, or the other one had something else come up
+      if (!partner || stateTime <= 0 || (meeting.time > 0.8 && partner.state !== 'meet')) {
+        meeting = null;
+        setState('idle', rand(1, 3));
+        break;
+      }
+      const dx = partner.x - middle();
+      facing = dx >= 0 ? 1 : -1;
+      view?.setFacing(facing);
+      // shuffle back if they are standing on top of each other
+      if (Math.abs(dx) < elbowRoom() && !settings.stay) pos.x = clamp(pos.x - facing * cfg.speed * 0.7 * dt, minX(), maxX());
+      // they take turns: whoever leads speaks first, the other answers a second later
+      const turns = { greet: [0.3], chat: [0.3, 2.3], dance: [0.5] }[meeting.kind].map((at) => at + (meeting.lead ? 0 : 1));
+      if (meeting.time >= turns[meeting.spoken]) {
+        meeting.spoken++;
+        say(meeting.kind === 'dance' ? 'click' : 'idle', 1.2);
+      }
+      break;
+    }
+    case 'comfort': {
+      const sad = others.find((other) => other.id === comforting.with);
+      if (!sad || sad.state !== 'cry' || stateTime <= 0) {
+        comforting = null;
+        comfortAgainAt = now + 8000;
+        setState('idle', rand(1, 2));
+        break;
+      }
+      const dx = sad.x - middle();
+      facing = dx >= 0 ? 1 : -1;
+      view?.setFacing(facing);
+      const walking = Math.abs(dx) > elbowRoom() + 8 && !settings.stay;
+      if (walking) pos.x = clamp(pos.x + facing * cfg.speed * 1.2 * dt, minX(), maxX());
+      view?.setState(walking ? 'walk' : 'comfort');
+      if (!walking && !comforting.said) {
+        comforting.said = true;
+        say('comfort', 2);
+      }
+      break;
+    }
     case 'idle':
       if (stateTime <= 0) {
         if (Math.random() < 0.3) {
@@ -316,6 +433,23 @@ async function loadCharacter(next) {
 }
 
 api.onSettings(applySettings);
+api.onCursor((point) => (cursor = { ...point, movedAt: performance.now() }));
+api.onOthers((list) => {
+  // one of them just did something alarming nearby: jump and look
+  const alarming = list.find((other) => other.state === 'special' && others.find((was) => was.id === other.id)?.state !== 'special');
+  others = list;
+  if (alarming && (state === 'idle' || state === 'walk') && Math.abs(alarming.x - middle()) < 500) {
+    facing = alarming.x >= middle() ? 1 : -1;
+    view?.setFacing(facing);
+    setState('talk', 1.3);
+    say('click', 1.2);
+  }
+});
+api.onMeet((request) => {
+  if (state !== 'idle' && state !== 'walk') return; // busy; the other one will notice and move on
+  meeting = { ...request, time: 0, spoken: 0 };
+  setState('meet', request.seconds);
+});
 api.onArea((value) => {
   area = value;
   pos.x = clamp(pos.x, minX(), maxX());

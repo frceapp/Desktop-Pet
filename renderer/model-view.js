@@ -11,6 +11,9 @@ const FRAME = 1.3; // camera frame height relative to the model, leaving room to
 const TEAR_COUNT = 4;
 const FIDGETS = ['wave', 'cheer', 'look', 'wiggle']; // things it does by itself while idle
 const FIDGET_SECONDS = 1.4;
+// How far an arm may lift from hanging, in radians: a little above level. These characters'
+// heads are far wider than their shoulders, so any higher and the arm disappears into the head.
+const ARM_UP = 1.15;
 
 // Returns the face texture's pixels with an expression's edits applied, as
 // { data, width, height }. Coordinates in the ops are pixels of the original image.
@@ -278,14 +281,11 @@ export async function createView(host, character, cfg) {
     }
     for (const arm of arms) {
       // each arm swings against the leg on its own side
-      const lift = raise[arm.side];
-      turnLimb.setFromEuler(euler.set(step * arm.side * 0.8, 0, lift * arm.side, 'XYZ'));
-      // lifted past level it would vanish inside a big head, so bring it round the front
-      const high = THREE.MathUtils.clamp((lift - 0.7) / 0.8, 0, 1);
-      nudge.set(0, 0, high * (size.z / 2 - arm.joint.z));
+      const lift = Math.min(raise[arm.side], ARM_UP);
+      turnLimb.setFromEuler(euler.set(step * arm.side * 0.5, 0, lift * arm.side, 'XYZ'));
+      nudge.set(0, 0, 0);
       place(arm);
     }
-    nudge.set(0, 0, 0);
     for (const ear of ears) {
       const [out, forward] = lean[ear.side];
       turnLimb.setFromEuler(euler.set(forward, 0, -out * ear.side, 'XYZ'));
@@ -314,7 +314,8 @@ export async function createView(host, character, cfg) {
     fidget = null;
     fidgetIn = 0.4 + Math.random() * 1.2;
     const has = (name) => Boolean(opts.expressions?.[name]);
-    const stand = { drag: 'talk', fall: 'talk', special: 'annoyed', sleep: 'blink' }[next]; // borrowed when it has no own face
+    // borrowed when it has no face of its own for this state
+    const stand = { drag: 'talk', fall: 'talk', chase: 'talk', reach: 'talk', greet: 'talk', chat: 'talk', dance: 'talk', special: 'annoyed', sleep: 'blink' }[next];
     expression = has(next) ? next : has(stand) ? stand : 'neutral';
     show(expression);
   }
@@ -370,7 +371,7 @@ export async function createView(host, character, cfg) {
         turn = facing * 0.3;
         hop = 0.05 + Math.sin(since * 5) * 0.02;
         stretch = 1 + Math.sin(since * 30) * 0.015;
-        raise[-1] = raise[1] = 1.5 + Math.sin(since * 22) * 0.12;
+        raise[-1] = raise[1] = 1.05 + Math.sin(since * 22) * 0.1;
         bothEars(-0.06 + Math.sin(since * 48) * 0.07, Math.sin(since * 37) * 0.08);
         break;
       case 'cry':
@@ -379,6 +380,57 @@ export async function createView(host, character, cfg) {
         stretch = 1 + Math.sin(since * 11) * 0.025;
         raise[-1] = raise[1] = 0.6 + Math.sin(since * 30) * 0.08;
         bothEars(0.7, 0.25); // drooping
+        break;
+      case 'chase':
+        // running after the mouse pointer with both arms out
+        turn = facing * 0.6;
+        step = Math.sin(clock * 11);
+        hop = Math.abs(step) * 0.04;
+        roll = step * 0.07;
+        raise[-1] = raise[1] = 0.95 + Math.sin(clock * 11) * 0.15;
+        bothEars(0.05, -0.3);
+        break;
+      case 'reach':
+        // right under it: stretching up, grabbing with one hand then the other, little jumps
+        turn = facing * 0.25;
+        hop = Math.abs(Math.sin(since * 7)) * 0.1;
+        stretch = 1.04 + Math.sin(since * 14) * 0.02;
+        raise[-1] = 0.85 + Math.sin(since * 16) * 0.3;
+        raise[1] = 0.85 - Math.sin(since * 16) * 0.3;
+        bothEars(-0.05 + Math.sin(since * 14) * 0.05, 0);
+        break;
+      // --- with another pet (it is already turned to face them)
+      case 'greet':
+        // a little hop, then waving with the hand nearest them
+        turn = facing * 0.5;
+        hop = Math.abs(Math.sin(since * 9)) * 0.08 * Math.exp(-since * 2);
+        raise[facing] = 0.85 + Math.sin(since * 15) * 0.3;
+        raise[-facing] = 0.2;
+        bothEars(0.1 + Math.sin(since * 15) * 0.06, 0);
+        break;
+      case 'chat':
+        // nodding along and gesturing while they talk
+        turn = facing * 0.5;
+        pitch = Math.max(0, Math.sin(since * 3.4)) * 0.07;
+        stretch = 1 + Math.sin(since * 12) * 0.02;
+        raise[-1] = 0.4 + Math.sin(since * 5) * 0.3;
+        raise[1] = 0.4 - Math.sin(since * 5) * 0.3;
+        break;
+      case 'dance':
+        // bouncing side to side together, arms going up in turn
+        turn = facing * 0.3 + Math.sin(since * 4.5) * 0.25;
+        hop = Math.abs(Math.sin(since * 9)) * 0.07;
+        roll = Math.sin(since * 9) * 0.1;
+        raise[-1] = 0.6 + Math.sin(since * 9) * 0.5;
+        raise[1] = 0.6 - Math.sin(since * 9) * 0.5;
+        bothEars(Math.sin(since * 9) * 0.15, Math.sin(since * 18) * 0.12);
+        break;
+      case 'comfort':
+        // leaning in beside someone who is crying, patting with the near hand
+        turn = facing * 0.55;
+        roll = -facing * 0.05;
+        raise[facing] = 0.65 + Math.abs(Math.sin(since * 5)) * 0.45;
+        bothEars(0.25, 0.1);
         break;
       case 'sleep':
         // dozing: slow deep breaths, nodding forward, ears gone slack
@@ -390,14 +442,14 @@ export async function createView(host, character, cfg) {
       case 'drag':
         roll = Math.sin(since * 7) * 0.18;
         stretch = 1.06;
-        raise[-1] = 1.3 + Math.sin(since * 10) * 0.3;
-        raise[1] = 1.3 - Math.sin(since * 10) * 0.3;
+        raise[-1] = 0.85 + Math.sin(since * 10) * 0.3;
+        raise[1] = 0.85 - Math.sin(since * 10) * 0.3;
         lean[-1][0] -= Math.sin(since * 7 - 1) * 0.3;
         lean[1][0] += Math.sin(since * 7 - 1) * 0.3;
         break;
       case 'fall':
         stretch = 1.1;
-        raise[-1] = raise[1] = 1.6;
+        raise[-1] = raise[1] = ARM_UP;
         bothEars(0.15, -0.5); // streaming up behind it
         break;
       default: {
@@ -415,9 +467,9 @@ export async function createView(host, character, cfg) {
         const part = t / FIDGET_SECONDS; // 0..1 through the fidget
         const ease = Math.min(1, Math.sin(Math.PI * part) * 3); // quick in, hold, quick out
         if (fidget.kind === 'wave') {
-          raise[fidget.side] = ease * (1.5 + Math.sin(t * 16) * 0.3);
+          raise[fidget.side] = ease * (0.85 + Math.sin(t * 16) * 0.3);
         } else if (fidget.kind === 'cheer') {
-          raise[-1] = raise[1] = ease * 1.5;
+          raise[-1] = raise[1] = ease * ARM_UP;
           hop = Math.abs(Math.sin(t * 10)) * 0.06 * ease;
         } else if (fidget.kind === 'look') {
           turn = Math.sin(Math.PI * 2 * part) * 0.5;
@@ -445,7 +497,8 @@ export async function createView(host, character, cfg) {
       }
     }
 
-    const seated = state === 'sleep' || (sitting && state !== 'walk' && state !== 'drag' && state !== 'fall');
+    const upright = ['walk', 'chase', 'drag', 'fall'].includes(state);
+    const seated = state === 'sleep' || (sitting && !upright);
     sit += ((seated ? 1 : 0) - sit) * Math.min(1, dt * 8);
     if (Math.abs(sit - (seated ? 1 : 0)) < 0.002) sit = seated ? 1 : 0;
     poseLimbs(step, sit, raise, lean);
@@ -460,7 +513,7 @@ export async function createView(host, character, cfg) {
       blinkIn -= dt;
       if (blinkIn < -0.13) blinkIn = 2.5 + Math.random() * 3;
       show(blinkIn < 0 ? 'blink' : 'neutral');
-    } else if (state === 'talk' && expression === 'talk') {
+    } else if (expression === 'talk' && (state === 'talk' || state === 'greet' || state === 'chat')) {
       // the mouth opens and closes while it speaks
       show(Math.sin(since * 20) > -0.3 ? 'talk' : 'neutral');
     }

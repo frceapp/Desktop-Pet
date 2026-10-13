@@ -74,6 +74,11 @@ three.js is copied into `renderer/vendor/three` so the installed app needs no `n
 - **Walk around** on the floor of your screen, legs stepping, arms swinging, ears flopping.
 - **Fidget** when standing still: wave, cheer, look around, wiggle, blink, twitch an ear.
 - **Talk** in little speech bubbles.
+- **Chase the mouse.** Move the pointer near one and it runs over with its arms out, then jumps
+  and grabs at it. It gives up after a few seconds, or when the pointer stops moving.
+- **Keep each other company.** With more than one out they wander over to each other, and when
+  two meet they stop to wave, chat or dance together. When one cries, the others come and stay
+  beside it. When Usagi opens a black hole, the others nearby jump.
 - **React to clicks.** Click one 5 times within 4 seconds and it snaps.
 - **Get picked up.** Drag one anywhere; let go and it drops back to the floor.
 
@@ -103,7 +108,7 @@ Right-click a character. Size, Stay, Sleep and Mute apply to the one you right-c
 | --- | --- |
 | **Characters** | Tick everyone you want on screen. Each one roams on its own. The last one cannot be unticked. |
 | **Size** | Tiny, Small, Normal, Large, Huge |
-| **Stay** | It sits down and stays exactly where you put it, even above the floor |
+| **Stay** | It sits down and stays exactly where you put it, even above the floor. It still grabs at the mouse but does not run after it. |
 | **Sleep** | It sits, shuts its eyes and dozes with little z's until you untick it. Clicks do not wake it. |
 | **Mute** | It keeps moving and reacting but shows no speech bubbles |
 | **Open characters folder** | Opens the folder described under [Adding a character](#adding-a-character) |
@@ -125,7 +130,7 @@ in the Characters menu the next time you open it.
 | `annoyAfterClicks`, `clickWindowMs` | This many clicks within this many ms makes it snap |
 | `cryMs` | How long it cries afterwards |
 | `sprites` or `model` | How it is drawn, see below |
-| `lines` | What its speech bubble says per situation, a list of texts each: `idle`, `click`, `warn` (one click before snapping), `annoyed`, `cry`, `special` (opening a black hole), `land` (cracking the screen). Leave `cry` out and it never cries. |
+| `lines` | What its speech bubble says per situation, a list of texts each: `idle`, `click`, `warn` (one click before snapping), `annoyed`, `cry`, `comfort` (beside another pet that is crying), `special` (opening a black hole), `land` (cracking the screen). Leave `cry` out and it never cries. |
 | `blackHole` | Optional. `afterTantrums`: it opens a black hole every this many times it snaps; `size` in pixels; `seconds` it lasts |
 | `crack` | Optional. Dropped from at least `fromHeight` pixels it cracks the screen where it lands: `width`, `height` of the cracked patch, `seconds` it lasts |
 
@@ -163,7 +168,7 @@ A glTF file; no rig or animations needed. See `characters/chiikawa`.
 | File | Role |
 | --- | --- |
 | `main.js` | Windows, menu, tray icon, saved settings, screen effects |
-| `renderer/pet.js` | What a pet decides to do: walk, talk, react, fall, sleep |
+| `renderer/pet.js` | What a pet decides to do: walk, talk, chase the mouse, react, fall, sleep |
 | `renderer/model-view.js` | Draws a 3D-model character and animates it |
 | `renderer/sprite-view.js` | Draws an image-based character |
 | `renderer/blackhole.js`, `renderer/crack.js` | The two screen effects |
