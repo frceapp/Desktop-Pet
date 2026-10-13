@@ -13,7 +13,7 @@ const meetAgain = new Map(); // when a pair may next stop to meet: "a|b" -> time
 let tray;
 const effects = new Map(); // screen effects now showing: kind -> window
 // `characters` are the ids chosen to be on screen; `pets` holds each one's own
-// { scale, stay, sleep, mute }, set from its right-click menu.
+// { scale, stay, sleep, mute, chase }, set from its right-click menu.
 let settings = { characters: ['chiikawa'], pets: {} };
 
 const SIZES = [
@@ -49,7 +49,13 @@ function saveSettings() {
 
 function petSettings(id) {
   const own = settings.pets[id] ?? {};
-  return { scale: own.scale ?? 1, stay: own.stay ?? false, sleep: own.sleep ?? false, mute: own.mute ?? false };
+  return {
+    scale: own.scale ?? 1,
+    stay: own.stay ?? false,
+    sleep: own.sleep ?? false,
+    mute: own.mute ?? false,
+    chase: own.chase ?? true,
+  };
 }
 
 function changeSetting(id, key, value) {
@@ -129,6 +135,12 @@ function buildMenu(id) {
             type: 'checkbox',
             checked: own.mute,
             click: (item) => changeSetting(id, 'mute', item.checked),
+          },
+          {
+            label: 'Chase mouse',
+            type: 'checkbox',
+            checked: own.chase,
+            click: (item) => changeSetting(id, 'chase', item.checked),
           },
         ]
       : []),

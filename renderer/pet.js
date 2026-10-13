@@ -12,7 +12,7 @@ const REST = 5; // seconds it then ignores the pointer
 let character; // { id, base, config }
 let cfg;
 let view; // draws the character: sprite-view.js or model-view.js
-let settings; // { scale, stay, sleep, mute }
+let settings; // { scale, stay, sleep, mute, chase }
 let win; // window size { w, h }
 let area; // work area of the display the pet is on
 let pos; // window top-left, in screen px
@@ -169,10 +169,11 @@ async function drop() {
 }
 
 // Where the pointer is from the pet's middle, if it is within `range` and worth chasing:
-// still being moved about, and the pet not worn out from the last chase.
+// chasing not switched off, the pointer still being moved about, and the pet not worn out
+// from the last chase.
 function pointerNearby(range) {
   const now = performance.now();
-  if (!cursor || now < ignorePointerUntil || now - cursor.movedAt > BORED_AFTER * 1000) return null;
+  if (!settings.chase || !cursor || now < ignorePointerUntil || now - cursor.movedAt > BORED_AFTER * 1000) return null;
   const dx = cursor.x - (pos.x + win.w / 2);
   const dy = cursor.y - (pos.y + win.h - cfg.size / 2);
   return Math.hypot(dx, dy) < range ? { dx, dy } : null;

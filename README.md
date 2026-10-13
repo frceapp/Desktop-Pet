@@ -75,7 +75,8 @@ three.js is copied into `renderer/vendor/three` so the installed app needs no `n
 - **Fidget** when standing still: wave, cheer, look around, wiggle, blink, twitch an ear.
 - **Talk** in little speech bubbles.
 - **Chase the mouse.** Move the pointer near one and it runs over with its arms out, then jumps
-  and grabs at it. It gives up after a few seconds, or when the pointer stops moving.
+  and grabs at it. It gives up after a few seconds, or when the pointer stops moving. You can
+  switch this off per character in the menu.
 - **Keep each other company.** With more than one out they wander over to each other, and when
   two meet they stop to wave, chat or dance together. When one cries, the others come and stay
   beside it. When Usagi opens a black hole, the others nearby jump.
@@ -102,7 +103,7 @@ The pets make no sound.
 
 ## The menu
 
-Right-click a character. Size, Stay, Sleep and Mute apply to the one you right-clicked.
+Right-click a character. Everything from Size to Chase mouse applies to the one you right-clicked.
 
 | Item | What it does |
 | --- | --- |
@@ -111,6 +112,7 @@ Right-click a character. Size, Stay, Sleep and Mute apply to the one you right-c
 | **Stay** | It sits down and stays exactly where you put it, even above the floor. It still grabs at the mouse but does not run after it. |
 | **Sleep** | It sits, shuts its eyes and dozes with little z's until you untick it. Clicks do not wake it. |
 | **Mute** | It keeps moving and reacting but shows no speech bubbles |
+| **Chase mouse** | Ticked by default. Untick it and that character leaves the mouse pointer alone. |
 | **Open characters folder** | Opens the folder described under [Adding a character](#adding-a-character) |
 | **Quit** | Closes every pet |
 
