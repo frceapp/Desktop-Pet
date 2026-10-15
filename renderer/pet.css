@@ -21,7 +21,6 @@ body {
   width: var(--size);
   height: var(--size);
   transform: translateX(-50%);
-  cursor: grab;
 }
 
 #pet img,

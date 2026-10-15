@@ -426,10 +426,10 @@ export async function createView(host, character, cfg) {
         bothEars(Math.sin(since * 9) * 0.15, Math.sin(since * 18) * 0.12);
         break;
       case 'comfort':
-        // leaning in beside someone who is crying, patting with the near hand
+        // leaning in against someone who is crying, patting them with the near hand
         turn = facing * 0.55;
-        roll = -facing * 0.05;
-        raise[facing] = 0.65 + Math.abs(Math.sin(since * 5)) * 0.45;
+        roll = -facing * 0.09;
+        raise[facing] = 0.6 + Math.abs(Math.sin(since * 6)) * 0.5;
         bothEars(0.25, 0.1);
         break;
       case 'sleep':
@@ -535,6 +535,9 @@ export async function createView(host, character, cfg) {
   }
 
   return {
+    // how much of its square box the figure fills, sideways and upward
+    width: size.x / span,
+    height: size.y / span + 0.03,
     setState,
     setFacing: (dir) => (facing = dir),
     setSitting: (value) => (sitting = value),

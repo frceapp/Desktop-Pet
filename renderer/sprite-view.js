@@ -30,6 +30,9 @@ export async function createView(host, character, cfg) {
   await img.decode().catch(() => {});
 
   return {
+    // how much of its square box the picture fills, sideways and upward (a fair guess)
+    width: 0.8,
+    height: 0.95,
     setState,
     // sprites are drawn facing right and mirrored when heading left
     setFacing: (dir) => img.style.setProperty('--facing', dir),

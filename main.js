@@ -9,6 +9,9 @@ const WIN_H = 300;
 
 const pets = new Map(); // characters now on screen: id -> window
 const moods = new Map(); // what each is doing, as it last reported: id -> state
+// Where each pet's window is and how big the pet in it is drawn, for telling when the mouse
+// is on it: id -> { x, y, width, height, held, over }
+const bodies = new Map();
 const meetAgain = new Map(); // when a pair may next stop to meet: "a|b" -> time
 let tray;
 const effects = new Map(); // screen effects now showing: kind -> window
@@ -183,9 +186,11 @@ function createPet(id) {
     },
   });
   pets.set(id, win);
-  win.on('closed', () => pets.get(id) === win && pets.delete(id) && moods.delete(id));
-  // Only the pet itself catches the mouse; the renderer toggles this on hover.
-  win.setIgnoreMouseEvents(true, { forward: true });
+  const [x, y] = win.getPosition();
+  bodies.set(id, { x, y, width: 0, height: 0, held: false, over: false });
+  win.on('closed', () => pets.get(id) === win && pets.delete(id) && moods.delete(id) && bodies.delete(id));
+  // Clicks pass through the window except while the mouse is on the pet; see watchCursor.
+  win.setIgnoreMouseEvents(true);
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   win.once('ready-to-show', () => win.showInactive());
 }
@@ -237,11 +242,22 @@ function registerIpc() {
 
   // setBounds rather than setPosition: on scaled displays repeated setPosition makes the window grow.
   ipcMain.on('pet:setPos', (event, x, y) => {
-    petOf(event)[1]?.setBounds({ x: Math.round(x), y: Math.round(y), width: WIN_W, height: WIN_H });
+    const [id, win] = petOf(event);
+    if (!win) return;
+    win.setBounds({ x: Math.round(x), y: Math.round(y), width: WIN_W, height: WIN_H });
+    Object.assign(bodies.get(id), { x: Math.round(x), y: Math.round(y) });
   });
 
-  ipcMain.on('pet:ignoreMouse', (event, ignore) => {
-    petOf(event)[1]?.setIgnoreMouseEvents(ignore, { forward: true });
+  // how big the pet is drawn, standing at the bottom middle of its window
+  ipcMain.on('pet:body', (event, { width, height }) => {
+    const body = bodies.get(petOf(event)[0]);
+    if (body) Object.assign(body, { width, height });
+  });
+
+  // a mouse button is down on the pet: it keeps the mouse until that is let go
+  ipcMain.on('pet:hold', (event, held) => {
+    const body = bodies.get(petOf(event)[0]);
+    if (body) body.held = held;
   });
 
   ipcMain.on('pet:menu', (event) => {
@@ -377,16 +393,38 @@ function keepCompany() {
   }, 200);
 }
 
-// Pets chase the mouse, so tell them whenever it moves.
+// Follows the mouse, many times a second.
+//
+// A pet's window lets clicks through to whatever is behind it, except while the pointer is
+// on the pet itself. That is decided here from where the pointer and the pet are, not from
+// mouse-move events in the window: a pet also walks under a pointer that is not moving, and
+// going by events left windows stuck solid or stuck see-through, so a pet could not be
+// picked up, or blocked the one beneath it.
+//
+// The pets are also told where the pointer is, so they can chase it.
 function watchCursor() {
   let last = '';
   setInterval(() => {
     const point = screen.getCursorScreenPoint();
+    for (const [id, win] of pets) {
+      const body = bodies.get(id);
+      if (!body || win.isDestroyed()) continue;
+      // the pet stands at the bottom middle of its window, and is near enough an oval
+      const dx = (point.x - (body.x + WIN_W / 2)) / (body.width / 2 + 3);
+      const dy = (point.y - (body.y + WIN_H - body.height / 2)) / (body.height / 2 + 3);
+      const over = body.held || dx * dx + dy * dy < 1;
+      if (over === body.over) continue;
+      body.over = over;
+      win.setIgnoreMouseEvents(!over);
+    }
+
     const now = `${point.x},${point.y}`;
     if (now === last) return;
     last = now;
-    for (const win of pets.values()) win.webContents.send('pet:cursor', point);
-  }, 60);
+    for (const win of pets.values()) {
+      if (!win.isDestroyed()) win.webContents.send('pet:cursor', point);
+    }
+  }, 16);
 }
 
 function sendAreas() {

@@ -28,7 +28,6 @@ let sobTimer = 0;
 let clicks = []; // timestamps of recent clicks
 let tantrums = 0; // times it has snapped since its last black hole
 let press = null; // in-progress mouse press on the pet
-let hover = false;
 let bubbleTimer;
 let cursor = null; // the mouse pointer on screen: { x, y, movedAt }
 let ignorePointerUntil = 0;
@@ -68,6 +67,8 @@ const middle = () => pos.x + win.w / 2;
 const beside = (other) => Math.abs(other.y - pos.y) < 40;
 // How far apart two pets like to stand.
 const elbowRoom = () => cfg.size * 0.55 + 32;
+// How wide the pet itself is drawn, in pixels (its box is wider than it is).
+const bodyWidth = () => cfg.size * (view?.width ?? 0.75);
 
 function say(kind, seconds = 1.6) {
   const line = pick(cfg.lines?.[kind] ?? []);
@@ -186,7 +187,6 @@ function tick(now) {
   stateTime -= dt;
 
   const range = NOTICE + cfg.size / 2;
-  const arm = cfg.size * 0.3; // close enough sideways to grab at it
   if ((state === 'idle' || state === 'walk') && pointerNearby(range)) {
     // spotted the pointer: after it! (told to stay, it can only reach from where it sits)
     setState(settings.stay ? 'reach' : 'chase', TIRED_AFTER);
@@ -217,6 +217,11 @@ function tick(now) {
       }
       facing = pointer.dx >= 0 ? 1 : -1;
       view?.setFacing(facing);
+      // How close sideways counts as having got there. Under a pointer that is overhead it
+      // stands right beneath; one down at its own height it stops just beside, so it does
+      // not park itself underneath and take the clicks meant for whatever is there.
+      const overhead = pointer.dy < -cfg.size * 0.3;
+      const arm = overhead ? cfg.size * 0.3 : bodyWidth() / 2 + 10;
       if (state === 'reach') {
         // it got away sideways: run after it again
         if (!settings.stay && Math.abs(pointer.dx) > arm * 1.8) setState('chase', stateTime);
@@ -257,11 +262,22 @@ function tick(now) {
         setState('idle', rand(1, 2));
         break;
       }
-      const dx = sad.x - middle();
-      facing = dx >= 0 ? 1 : -1;
+      // Stand right up against them, close enough to pat, on the side it is coming from.
+      // If another comforter is on that side already, the one earlier by name keeps it and
+      // this one goes round to the other side.
+      let side = middle() >= sad.x ? 1 : -1;
+      if (others.some((other) => other.state === 'comfort' && other.id < character.id && (other.x >= sad.x ? 1 : -1) === side)) {
+        side = -side;
+      }
+      const spot = clamp(sad.x + side * bodyWidth() * 0.95 - win.w / 2, minX(), maxX());
+      const walking = Math.abs(spot - pos.x) > 2 && !settings.stay;
+      if (walking) {
+        facing = spot > pos.x ? 1 : -1;
+        pos.x += facing * Math.min(cfg.speed * 1.2 * dt, Math.abs(spot - pos.x));
+      } else {
+        facing = sad.x >= middle() ? 1 : -1;
+      }
       view?.setFacing(facing);
-      const walking = Math.abs(dx) > elbowRoom() + 8 && !settings.stay;
-      if (walking) pos.x = clamp(pos.x + facing * cfg.speed * 1.2 * dt, minX(), maxX());
       view?.setState(walking ? 'walk' : 'comfort');
       if (!walking && !comforting.said) {
         comforting.said = true;
@@ -332,19 +348,11 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
-function setHover(over) {
-  if (press || over === hover) return;
-  hover = over;
-  api.ignoreMouse(!over);
-}
-
-window.addEventListener('mousemove', (e) => setHover(host.contains(e.target)));
-document.addEventListener('mouseleave', () => setHover(false));
-
 host.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
   host.setPointerCapture(e.pointerId);
   press = { sx: e.screenX, sy: e.screenY, px: pos.x, py: pos.y, dragging: false };
+  api.hold(true); // the window keeps the mouse until the button is let go
 });
 
 host.addEventListener('pointermove', (e) => {
@@ -362,13 +370,19 @@ host.addEventListener('pointermove', (e) => {
   pos.y = press.py + dy;
 });
 
-host.addEventListener('pointerup', () => {
+// The press is over: a click if it never moved, otherwise the pet is put down.
+function release(click) {
   if (!press) return;
   const wasDrag = press.dragging;
   press = null;
+  api.hold(false);
   if (wasDrag) drop();
-  else onClick();
-});
+  else if (click) onClick();
+}
+
+host.addEventListener('pointerup', () => release(true));
+// should the mouse be taken away mid-press (a menu, another window), let go cleanly
+host.addEventListener('lostpointercapture', () => release(false));
 
 host.addEventListener('contextmenu', (e) => {
   e.preventDefault();
@@ -381,6 +395,8 @@ function applySize() {
   document.body.style.setProperty('--size', `${cfg.size}px`);
   view?.resize(cfg.size);
   pos.x = clamp(pos.x, minX(), maxX());
+  // the main process needs the pet's outline to know when the mouse is on it
+  api.body({ width: bodyWidth(), height: cfg.size * (view?.height ?? 0.8) });
 }
 
 function applySettings(next) {
@@ -419,6 +435,7 @@ async function loadCharacter(next) {
 
   const { createView } = await import(cfg.model ? './model-view.js' : './sprite-view.js');
   view = await createView(host, next, cfg);
+  applySize(); // now that its real proportions are known
   view.setFacing(facing);
   view.setSitting(settings.stay);
   setState('idle', 2);
