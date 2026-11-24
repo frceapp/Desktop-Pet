@@ -1,6 +1,6 @@
-# Builds the Windows installer and attaches it to a GitHub Release whenever a version tag
-# (v1.0.0, v1.1.0, ...) is pushed. The tag must match "version" in package.json.
-name: Release installer
+# Builds the Windows binary bundle and attaches it to a GitHub Release whenever a version tag
+# (v1.0.0, v1.1.0, ...) is pushed. The tag must match "version" in Cargo.toml.
+name: Release
 
 on:
   push:
@@ -14,16 +14,20 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx electron-builder --win --publish never
-      # One release per tag, holding just the installer. (Letting electron-builder publish
-      # uploads its files in parallel, which made two releases for the same tag.)
-      - name: Publish the installer as a release
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
+      - run: cargo build --release
+      - name: Package Windows release
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/Desktop-Pet | Out-Null
+          Copy-Item target/release/desktop-pet.exe dist/Desktop-Pet/
+          Copy-Item -Recurse characters dist/Desktop-Pet/
+          Copy-Item -Recurse chiikawa_and_friends dist/Desktop-Pet/
+          Compress-Archive -Path dist/Desktop-Pet/* -DestinationPath "dist/Desktop-Pet-Windows-x64-${{ github.ref_name }}.zip"
+      - name: Publish release
         shell: bash
-        run: gh release create "$GITHUB_REF_NAME" dist/Desktop-Pet-Setup-*.exe --title "Desktop Pet ${GITHUB_REF_NAME#v}" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" dist/Desktop-Pet-Windows-x64-*.zip --title "Desktop Pet ${GITHUB_REF_NAME#v}" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}

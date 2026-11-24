@@ -5,8 +5,9 @@ top of every window, react when you click them, and can be picked up and dropped
 
 ![Chiikawa crying, Hachiware talking and shutting its eyes, Usagi standing and asleep](docs/preview.png)
 
-A fan project for personal use, built with [Electron](https://www.electronjs.org/) and
-[three.js](https://threejs.org/). Made and tested on Windows 11.
+A fan project for personal use, built purely in **Native Rust** on top of Windows Win32 layered
+windows (`windows-sys`), `tiny-skia`, `resvg`, `glam`, and `gltf` — with no browser, WebView, or
+Node.js runtime. Made and tested on Windows 11.
 
 ## The 3D model
 
@@ -27,59 +28,56 @@ the author or the rights holders.
 
 ## Install
 
-Download `Desktop-Pet-Setup-x.y.z.exe` from the
-[latest release](https://github.com/frceapp/Desktop-Pet/releases/latest) and run it. It installs for
-your user only (no administrator rights needed), adds a Start menu and desktop shortcut, and starts
-the pets. Uninstall it from Windows Settings like any other app.
+Download `Desktop-Pet-Windows-x64-vx.y.z.zip` from the
+[latest release](https://github.com/frceapp/Desktop-Pet/releases/latest), extract it, and run
+`desktop-pet.exe`. Keep the `characters/` and `chiikawa_and_friends/` folders next to the
+executable.
 
-The installer is not code-signed, so Windows SmartScreen may say "Windows protected your PC" the
+The executable is not code-signed, so Windows SmartScreen may say "Windows protected your PC" the
 first time. Choose **More info**, then **Run anyway**.
 
 ## Run from source
 
-You need [Node.js](https://nodejs.org/) 22.12 or newer.
+You need [Rust](https://www.rust-lang.org/tools/install) (MSVC toolchain on Windows) and the Windows
+10/11 SDK.
 
-```bash
-npm install
-npm start
+```powershell
+cargo run --release
 ```
 
-The first start downloads Electron, so it takes a little longer. If Electron says it failed to
-install, run `npx install-electron` once and start again.
+### Build the release binary
 
-### Build the installer
-
-```bash
-npm run dist
+```powershell
+cargo build --release
 ```
 
-This writes `dist/Desktop-Pet-Setup-<version>.exe`.
+This writes a single standalone executable to `target\release\desktop-pet.exe` (~3.8 MB).
 
-To publish a new version on GitHub, raise `"version"` in `package.json`, commit, then push a tag
-with the same number:
+To publish a new version on GitHub, raise `version` in `Cargo.toml`, commit, then push a tag with
+the same number:
 
 ```bash
-git tag v1.0.1
-git push origin main v1.0.1
+git tag v1.0.3
+git push origin main v1.0.3
 ```
 
-GitHub then builds the installer and attaches it to a new release (see
+GitHub then builds and attaches `Desktop-Pet-Windows-x64-<tag>.zip` to a new release (see
 `.github/workflows/release.yml`).
-
-three.js is copied into `renderer/vendor/three` so the installed app needs no `node_modules`; run
-`npm run vendor` after updating it.
 
 ## What they do
 
 - **Walk around** on the floor of your screen, legs stepping, arms swinging, ears flopping.
-- **Fidget** when standing still: wave, cheer, look around, wiggle, blink, twitch an ear.
+- **Fidget & dance** when standing still: wave, cheer, look around, wiggle, bow, stretch, tiptoe,
+  spin-hop, peek over its shoulder while shaking its butt, or break into a full **butt-wiggle dance**,
+  boogie, spin, or excited jump.
 - **Talk** in little speech bubbles.
 - **Chase the mouse.** Move the pointer near one and it runs over with its arms out, then jumps
   and grabs at it. It gives up after a few seconds, or when the pointer stops moving. You can
   switch this off per character in the menu.
 - **Keep each other company.** With more than one out they wander over to each other, and when
-  two meet they stop to wave, chat or dance together. When one cries, the others come and stay
-  beside it. When Usagi opens a black hole, the others nearby jump.
+  two meet they stop to wave, chat, or do synchronized partner dances (including butt-wiggle, boogie,
+  and spin dances). Nearby pets also trot over to join a dancing friend in sync! When one cries,
+  the others come and stay beside it. When Usagi opens a black hole, the others nearby jump.
 - **React to clicks.** Click one 5 times within 4 seconds and it snaps.
 - **Get picked up.** Drag one anywhere; let go and it drops back to the floor.
 
@@ -95,9 +93,9 @@ Usagi has two tricks of its own:
   that patch of the screen for a few seconds.
 - **Cracked screen.** Drop it from high up and the screen cracks where it lands, then heals.
 
-Both are only pictures drawn on top of the screen; clicks pass straight through them. To bend the
-screen, the black hole takes one picture of that small patch at the moment it opens. The picture
-stays inside the app and is thrown away when the hole closes.
+Both are only layered transparent overlays drawn on top of the screen; clicks pass straight through
+them. To bend the screen, the black hole captures one patch of that region via Win32 GDI at the
+moment it opens. The capture stays in memory and is discarded when the hole closes.
 
 The pets make no sound.
 
@@ -107,6 +105,9 @@ Right-click a character. Everything from Size to Chase mouse applies to the one 
 
 | Item | What it does |
 | --- | --- |
+| **Control Panel...** | Opens the native character settings window with live Size & Walk Speed sliders, visibility toggles, behavior switches, Butt Dance!, Bring to Floor, and Reset Defaults |
+| **Butt Dance!** | Makes the right-clicked pet turn around and perform its butt-wiggle dance (nearby pets may walk over and join!) |
+| **Dance Party!** | Makes every pet on screen start a synchronized butt-wiggle dance party |
 | **Characters** | Tick everyone you want on screen. Each one roams on its own. The last one cannot be unticked. |
 | **Size** | Tiny, Small, Normal, Large, Huge |
 | **Stay** | It sits down and stays exactly where you put it, even above the floor. It still grabs at the mouse but does not run after it. |
@@ -117,7 +118,7 @@ Right-click a character. Everything from Size to Chase mouse applies to the one 
 | **Quit** | Closes every pet |
 
 The tray icon has the same menu without the per-character items. Your choices are remembered
-between starts.
+between starts in `%APPDATA%\desktop-pet\settings.json`.
 
 ## Adding a character
 
@@ -139,12 +140,12 @@ in the Characters menu the next time you open it.
 ### Drawn with images (`sprites`)
 
 One image per state: `idle` (required), `walk`, `talk`, `annoyed`, `cry`, `drag`, `sit` (shown while
-told to stay), `sleep`. SVG, PNG, GIF, APNG and WebP all work. Draw it facing right; it is mirrored
-when walking left. Example: `"sprites": { "idle": "idle.png", "walk": "walk.gif" }`.
+told to stay), `sleep`. SVG, PNG, GIF, WebP, JPEG, BMP and ICO all work. Draw it facing right; it
+is mirrored when walking left. Example: `"sprites": { "idle": "idle.png", "walk": "walk.gif" }`.
 
 ### Drawn from a 3D model (`model`)
 
-A glTF file; no rig or animations needed. See `characters/chiikawa`.
+A glTF/GLB file; no rig or animations needed. See `characters/chiikawa`.
 
 | Key | Meaning |
 | --- | --- |
@@ -156,8 +157,11 @@ A glTF file; no rig or animations needed. See `characters/chiikawa`.
 
 ## How it works
 
-- **One small window per pet.** Each is transparent, always on top and moves itself across the
-  screen. Only the character itself catches the mouse; the rest of the window lets clicks through.
+- **One Win32 layered window per pet.** Each is transparent, always on top (`WS_EX_TOPMOST`), and
+  never steals focus (`WS_EX_NOACTIVATE`). `WS_EX_TRANSPARENT` is toggled dynamically from the pet's
+  body ellipse so clicks around the pet pass straight through.
+- **2×2 SSAA software 3D rasterizer.** Unlit glTF meshes and mipmapped facial textures are rasterized
+  directly on CPU into premultiplied BGRA DIB sections updated via `UpdateLayeredWindow`.
 - **Movement without a skeleton.** The model is split into its separate solid pieces. Short pieces
   standing on the floor are legs, small pieces out at the sides are arms, and pieces either side of
   the top of the head are ears. Each is turned about its own joint every frame; the body as a whole
@@ -165,15 +169,21 @@ A glTF file; no rig or animations needed. See `characters/chiikawa`.
 - **Expressions without blend shapes.** The face is a texture holding eyes, eyebrows, cheeks and
   several mouths. For each expression the app paints an edited copy of it: swapping in another
   mouth, or drawing shut eyes.
-- **Screen effects** are separate see-through windows that close themselves after a few seconds.
+- **Screen effects** are separate click-through layered windows that close themselves after a few
+  seconds.
 
 | File | Role |
 | --- | --- |
-| `main.js` | Windows, menu, tray icon, saved settings, screen effects |
-| `renderer/pet.js` | What a pet decides to do: walk, talk, chase the mouse, react, fall, sleep |
-| `renderer/model-view.js` | Draws a 3D-model character and animates it |
-| `renderer/sprite-view.js` | Draws an image-based character |
-| `renderer/blackhole.js`, `renderer/crack.js` | The two screen effects |
+| `src/main.rs` | DPI awareness, single-instance lock, entry point, unit tests |
+| `src/win32_app.rs` | Win32 layered windows, tray icon, context menu, event loop, company behavior |
+| `src/control_panel.rs` | Native character settings Control Panel window (sliders, toggles, live preview) |
+| `src/pet.rs` | What a pet decides to do: walk, talk, chase the mouse, react, fall, sleep |
+| `src/model_view.rs` | Loads glTF/GLB models, extracts limbs, paints expressions, animates |
+| `src/raster3d.rs` | 2×2 SSAA unlit software 3D rasterizer & mipmap texture sampler |
+| `src/sprite_view.rs` | Loads and draws image-based characters (`PNG`, `GIF`, `SVG`, `WebP`, etc.) |
+| `src/ui_overlay.rs` | Native speech bubble and sleeping `z` overlay renderer |
+| `src/effects.rs` | Black hole warp shader and procedural cracked screen effect |
+| `src/config.rs` | `character.json` discovery & `settings.json` persistence |
 | `characters/` | One folder per character |
 
 ## Credits
